@@ -1,0 +1,162 @@
+<!-- templates/jogo.html -->
+<!DOCTYPE html>
+<html>
+<head>
+    <title>FlowTale - {{ nome_historia }}</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/materialize/1.0.0/css/materialize.min.css" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Roboto', sans-serif;
+            background-color: #f5f5f5;
+        }
+        .container {
+            margin-top: 20px;
+        }
+        .btn {
+            transition: all 0.3s ease;
+        }
+        .btn:hover {
+            transform: scale(1.05);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1 class="teal-text">{{ nome_historia }}</h1>
+        <p><strong>Impacto Anterior:</strong> {{ cena.impacto_anterior }}</p>
+        <p><strong>Contexto Atual:</strong> {{ cena.contexto_atual }}</p>
+        <p><strong>Chamada à Ação:</strong> {{ cena.chamada_acao }}</p>
+        <p><strong>Pontuação:</strong> {{ pontuacao }} pontos</p>
+        
+        <form method="POST" action="{{ url_for('escolha') }}">
+            <input type="hidden" name="nome_historia" value="{{ nome_historia }}">
+            <input type="hidden" name="cena_idx" value="{{ cena_atual_idx }}">
+            {% for opcao in cena.opcoes %}
+                <button type="submit" name="escolha" value="{{ loop.index0 }}" class="btn teal waves-effect waves-light">
+                    {{ opcao.texto }}
+                </button>
+            {% endfor %}
+        </form>
+        
+        <div class="row" style="margin-top: 20px;">
+            <div class="col s12">
+                <input type="text" id="nome_save" placeholder="Nome do save (ex.: progresso1)" value="padrao">
+                <button onclick="salvarJogo()" class="btn teal waves-effect waves-light">Salvar</button>
+                <button onclick="carregarJogo()" class="btn teal waves-effect waves-light">Carregar</button>
+                <button onclick="apagarJogo()" class="btn red waves-effect waves-light">Apagar</button>
+                <a href="{{ url_for('index') }}" class="btn grey waves-effect waves-light">Voltar ao Menu</a>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Modal de Confirmação para Sobrescrever -->
+    <div id="confirmModal" class="modal">
+        <div class="modal-content">
+            <h4>Confirmar Sobrescrição</h4>
+            <p id="confirmMessage"></p>
+        </div>
+        <div class="modal-footer">
+            <a href="#!" class="modal-close btn-flat">Cancelar</a>
+            <a href="#!" onclick="confirmarSobrescrever()" class="modal-close btn teal">Sobrescrever</a>
+        </div>
+    </div>
+    
+    <!-- Modal de Confirmação para Apagar -->
+    <div id="deleteConfirmModal" class="modal">
+        <div class="modal-content">
+            <h4>Confirmar Exclusão</h4>
+            <p id="deleteConfirmMessage"></p>
+        </div>
+        <div class="modal-footer">
+            <a href="#!" class="modal-close btn-flat">Cancelar</a>
+            <a href="#!" onclick="confirmarApagar()" class="modal-close btn red">Apagar</a>
+        </div>
+    </div>
+    
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/materialize/1.0.0/js/materialize.min.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            M.Modal.init(document.querySelectorAll('.modal'));
+        });
+
+        let nomeSaveAtual = '';
+
+        function salvarJogo(confirmar = false) {
+            const nomeSave = document.getElementById('nome_save').value;
+            nomeSaveAtual = nomeSave;
+            const body = confirmar ? 
+                `nome_save=${encodeURIComponent(nomeSave)}&confirmar_sobrescrever=true` : 
+                `nome_save=${encodeURIComponent(nomeSave)}`;
+            
+            fetch('/salvar', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                body: body
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.confirmacao) {
+                    const modal = M.Modal.getInstance(document.getElementById('confirmModal'));
+                    document.getElementById('confirmMessage').textContent = data.confirmacao;
+                    modal.open();
+                } else {
+                    M.toast({html: data.message || data.error, classes: 'teal'});
+                }
+            })
+            .catch(error => M.toast({html: 'Erro ao salvar: ' + error, classes: 'red'}));
+        }
+
+        function confirmarSobrescrever() {
+            salvarJogo(true);
+        }
+
+        function carregarJogo() {
+            const nomeSave = document.getElementById('nome_save').value;
+            fetch('/carregar', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                body: `nome_save=${encodeURIComponent(nomeSave)}`
+            })
+            .then(response => {
+                if (!response.ok) throw new Error('Erro ao carregar');
+                return response.text();
+            })
+            .then(html => {
+                document.body.innerHTML = html;
+                M.toast({html: 'Jogo carregado com sucesso!', classes: 'teal'});
+                M.Modal.init(document.querySelectorAll('.modal')); // Reinicializa modals
+            })
+            .catch(error => M.toast({html: 'Erro ao carregar: ' + error, classes: 'red'}));
+        }
+
+        function apagarJogo() {
+            const nomeSave = document.getElementById('nome_save').value;
+            nomeSaveAtual = nomeSave;
+            const modal = M.Modal.getInstance(document.getElementById('deleteConfirmModal'));
+            document.getElementById('deleteConfirmMessage').textContent = `Tem certeza que deseja apagar o save '${nomeSave}'? Esta ação não pode ser desfeita.`;
+            modal.open();
+        }
+
+        function confirmarApagar() {
+            const nomeSave = nomeSaveAtual;
+            fetch('/apagar', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                body: `nome_save=${encodeURIComponent(nomeSave)}`
+            })
+            .then(response => response.json())
+            .then(data => {
+                M.toast({html: data.message || data.error, classes: data.message ? 'teal' : 'red'});
+            })
+            .catch(error => M.toast({html: 'Erro ao apagar: ' + error, classes: 'red'}));
+        }
+
+        // Proteção contra navegação para trás
+        history.pushState(null, document.title, window.location.href);
+        window.addEventListener('popstate', function(event) {
+            history.pushState(null, document.title, window.location.href);
+            M.toast({html: 'Navegação para trás desativada. Use as escolhas no jogo!', classes: 'red'});
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,149 @@
+<!-- templates/index.html -->
+<!DOCTYPE html>
+<html>
+<head>
+    <title>FlowTale - Menu</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/materialize/1.0.0/css/materialize.min.css" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Roboto', sans-serif;
+            background-color: #f5f5f5;
+        }
+        .container {
+            margin-top: 20px;
+        }
+        .card {
+            margin-bottom: 20px;
+        }
+        .badge {
+            display: inline-block;
+            padding: 5px 10px;
+            background-color: #26a69a;
+            color: white;
+            border-radius: 15px;
+            margin: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1 class="teal-text center">Bem-vindo ao FlowTale, {{ username }}!</h1>
+        <a href="{{ url_for('logout') }}" class="btn teal right">Trocar Usuário</a>
+        
+        <h4 class="teal-text">Histórias Disponíveis</h4>
+        <div class="row">
+            {% for nome, _ in historias.items() %}
+            <div class="col s12 m6">
+                <div class="card teal lighten-2">
+                    <div class="card-content white-text">
+                        <span class="card-title">{{ nome }}</span>
+                    </div>
+                    <div class="card-action">
+                        <a href="{{ url_for('jogar', nome_historia=nome) }}" class="btn white teal-text">Jogar</a>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        
+        <h4 class="teal-text">Seus Saves</h4>
+        {% if saves %}
+        <div class="row">
+            {% for save in saves %}
+            <div class="col s12 m6">
+                <div class="card teal lighten-2">
+                    <div class="card-content white-text">
+                        <span class="card-title">{{ save.nome_save }}</span>
+                        <p>História: {{ save.nome_historia }}</p>
+                        <p>Pontuação: {{ save.pontuacao }}</p>
+                        <p>Cena Atual: {{ save.cena_atual }}</p>
+                    </div>
+                    <div class="card-action">
+                        <button onclick="carregarSave('{{ save.nome_save }}')" class="btn white teal-text">Carregar</button>
+                        <button onclick="apagarSave('{{ save.nome_save }}')" class="btn white red-text">Apagar</button>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <p class="grey-text">Nenhum save encontrado.</p>
+        {% endif %}
+        
+        <h4 class="teal-text">Conquistas</h4>
+        {% if conquistas_info %}
+        <div>
+            {% for conquista in conquistas_info %}
+            <span class="badge">{{ conquista.nome }} (+{{ conquista.bonus }} pontos)</span>
+            {% endfor %}
+        </div>
+        {% else %}
+        <p class="grey-text">Nenhuma conquista desbloqueada ainda.</p>
+        {% endif %}
+    </div>
+    
+    <!-- Modal de Confirmação para Apagar -->
+    <div id="deleteConfirmModal" class="modal">
+        <div class="modal-content">
+            <h4>Confirmar Exclusão</h4>
+            <p id="deleteConfirmMessage"></p>
+        </div>
+        <div class="modal-footer">
+            <a href="#!" class="modal-close btn-flat">Cancelar</a>
+            <a href="#!" onclick="confirmarApagar()" class="modal-close btn red">Apagar</a>
+        </div>
+    </div>
+    
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/materialize/1.0.0/js/materialize.min.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            M.Modal.init(document.querySelectorAll('.modal'));
+        });
+
+        let nomeSaveAtual = '';
+
+        function carregarSave(nomeSave) {
+            fetch('/carregar', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                body: `nome_save=${encodeURIComponent(nomeSave)}`
+            })
+            .then(response => {
+                if (!response.ok) throw new Error('Erro ao carregar');
+                return response.text();
+            })
+            .then(html => {
+                document.body.innerHTML = html;
+                M.toast({html: 'Save carregado com sucesso!', classes: 'teal'});
+                M.Modal.init(document.querySelectorAll('.modal')); // Reinicializa modals
+            })
+            .catch(error => M.toast({html: 'Erro ao carregar: ' + error, classes: 'red'}));
+        }
+
+        function apagarSave(nomeSave) {
+            nomeSaveAtual = nomeSave;
+            const modal = M.Modal.getInstance(document.getElementById('deleteConfirmModal'));
+            document.getElementById('deleteConfirmMessage').textContent = `Tem certeza que deseja apagar o save '${nomeSave}'? Esta ação não pode ser desfeita.`;
+            modal.open();
+        }
+
+        function confirmarApagar() {
+            const nomeSave = nomeSaveAtual;
+            fetch('/apagar', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                body: `nome_save=${encodeURIComponent(nomeSave)}`
+            })
+            .then(response => response.json())
+            .then(data => {
+                M.toast({html: data.message || data.error, classes: data.message ? 'teal' : 'red'});
+                if (data.message) {
+                    // Atualiza a página para refletir a exclusão
+                    window.location.reload();
+                }
+            })
+            .catch(error => M.toast({html: 'Erro ao apagar: ' + error, classes: 'red'}));
+        }
+    </script>
+</body>
+</html>

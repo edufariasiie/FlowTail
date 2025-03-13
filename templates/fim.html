@@ -1,0 +1,30 @@
+<!-- templates/fim.html -->
+<!DOCTYPE html>
+<html>
+<head>
+    <title>FlowTale - Fim da História</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/materialize/1.0.0/css/materialize.min.css" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Roboto', sans-serif;
+            background-color: #f5f5f5;
+        }
+        .container {
+            margin-top: 20px;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1 class="teal-text">Fim da História!</h1>
+        {% if mensagem %}
+            <p class="red-text">{{ mensagem }}</p>
+        {% else %}
+            <p>Você terminou a história com <strong>{{ pontuacao }}</strong> pontos!</p>
+        {% endif %}
+        <a href="{{ url_for('index') }}" class="btn teal waves-effect waves-light">Voltar ao Menu</a>
+    </div>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/materialize/1.0.0/js/materialize.min.js"></script>
+</body>
+</html>
